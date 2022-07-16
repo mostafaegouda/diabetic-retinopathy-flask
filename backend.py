@@ -17,23 +17,93 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-def use_model(image):
-    onnx_model = onnx.load("./model2.onnx")
-    onnx.checker.check_model(onnx_model)
-    image = np.array(image.resize((224,)*2))
-    image = image[:, :, ::-1].T
-    image = image/np.max(image)
+# def use_model(image):
+#     onnx_model = onnx.load("./model2.onnx")
+#     onnx.checker.check_model(onnx_model)
+#     image = np.array(image.resize((224,)*2))
+#     image = image[:, :, ::-1].T
+#     image = image/np.max(image)
 
-    ort_session = ort.InferenceSession("model2.onnx", providers=[
+#     ort_session = ort.InferenceSession("model2.onnx", providers=[
+#                                        'TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider'])
+#     outputs = ort_session.run(
+#         None,
+#         {"image": image.astype(np.float32)[None, :3, :, :]},
+#     )
+#     # print(outputs)
+#     pre = outputs[0][0][1] > 0
+#     # print(pre)
+#     return pre
+
+
+# def get_image_from_request(req_image):
+#     import re
+#     from io import BytesIO
+#     import base64
+
+#     image_data = re.sub('^data:image/.+;base64,', '', req_image)
+#     image = Image.open(BytesIO(base64.b64decode(image_data)))
+#     return image
+
+
+# @app.route("/upload", methods=['POST'])
+# def upload_file():
+#     if request.method == 'POST':
+
+#         # check if the post request has the file part
+#         if 'file' not in request.json:
+#             return "Failed"
+#         req_image = request.json.get("file")
+
+#         # if user does not select file, browser also
+#         # submit a empty part without filename
+#         if req_image == '':
+#             flash('No selected file')
+#             return redirect(request.url)
+
+#         if req_image:
+#             image = get_image_from_request(req_image)
+#             warnings.filterwarnings("ignore")
+#             ort.set_default_logger_severity(3)
+#             return {"diagnosis": int(use_model(image))}
+
+
+def use_model(image):
+    onnx_model = onnx.load("./modelHasDoesnt.onnx")
+    onnx.checker.check_model(onnx_model)
+    image1 = np.array(image.resize((224,)*2))
+    image1 = image1[:, :, ::-1].T
+    image1 = image1/np.max(image1)
+
+    ort_session = ort.InferenceSession("modelHasDoesnt.onnx", providers=[
                                        'TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider'])
     outputs = ort_session.run(
         None,
-        {"image": image.astype(np.float32)[None, :3, :, :]},
+        {"image": image1.astype(np.float32)[None, :3, :, :]},
     )
-    # print(outputs)
+    print("abdo ", outputs)
     pre = outputs[0][0][1] > 0
-    # print(pre)
-    return pre
+
+    if not pre:
+        return 0
+
+    onnx_model = onnx.load("./modelMildSevere.onnx")
+    onnx.checker.check_model(onnx_model)
+    image2 = np.array(image.resize((224,)*2))
+    image2 = image2[:, :, ::-1].T
+    image2 = image2/np.max(image2)
+
+    ort_session = ort.InferenceSession("modelMildSevere.onnx", providers=[
+                                       'TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider'])
+    outputs = ort_session.run(
+        None,
+        {"image": image2.astype(np.float32)[None, :3, :, :]},
+    )
+    print("mamoun ", outputs)
+    pre = outputs[0][0]
+    if abs(pre[0]) > abs(pre[1]):
+        return 1
+    return 2
 
 
 def get_image_from_request(req_image):
